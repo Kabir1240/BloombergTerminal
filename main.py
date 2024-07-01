@@ -5,10 +5,9 @@ from datetime import date, timedelta
 STOCK = "TSLA"
 COMPANY_NAME = "Tesla Inc"
 STOCKS_API_KEY = os.environ.get("STOCKS_API_KEY")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 
 
-## STEP 1: Use https://www.alphavantage.co
-# When STOCK price increase/decreases by 5% between yesterday and the day before yesterday then print("Get News").
 def get_stock_difference_perc(stock:str) -> float:
     """
     Calculates the difference between the last and second last entry of a stock in percentage
@@ -56,12 +55,30 @@ def get_stock_difference_perc(stock:str) -> float:
 
 ## STEP 2: Use https://newsapi.org
 # Instead of printing ("Get News"), actually get the first 3 news pieces for the COMPANY_NAME. 
-def get_news():
-    print("we got news!")
+def get_news(query):
+    url = "https://newsapi.org/v2/everything"
+
+    if date.today().day == 1:
+        from_date = (date.today() - timedelta(days=4)).strftime("%Y-%m-%d")
+    elif date.today().day == 2:
+        from_date = (date.today() - timedelta(days=4)).strftime("%Y-%m-%d")
+    else:
+        from_date = (date.today() - timedelta(days=2)).strftime("%Y-%m-%d")
+
+    params = \
+        {
+            "q":query,
+            "apikey": NEWS_API_KEY,
+            "from": from_date,
+        }
+
+    response = requests.get(url=url, params=params)
+    response.raise_for_status()
+    print(response.json())
 
 
 ## STEP 3: Use https://www.twilio.com
-# Send a seperate message with the percentage change and each article's title and description to your phone number. 
+# Send a separate message with the percentage change and each article's title and description to your phone number.
 
 
 #Optional: Format the SMS message like this: 
@@ -74,9 +91,11 @@ or
 Headline: Were Hedge Funds Right About Piling Into Tesla Inc. (TSLA)?. 
 Brief: We at Insider Monkey have gone over 821 13F filings that hedge funds and prominent investors are required to file by the SEC The 13F filings show the funds' and investors' portfolio positions as of March 31st, near the height of the coronavirus market crash.
 """
+#
+# stock_difference_perc = get_stock_difference_perc(STOCK)
+# if -5 <= stock_difference_perc >= 5:
+#     get_news(COMPANY_NAME)
+# else:
+#     print(stock_difference_perc)
 
-stock_difference_perc = get_stock_difference_perc(STOCK)
-if -5 <= stock_difference_perc >= 5:
-    get_news()
-else:
-    print(stock_difference_perc)
+get_news(COMPANY_NAME)
