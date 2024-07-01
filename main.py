@@ -77,7 +77,7 @@ def get_news(query:str) -> Dict:
 
     params = \
         {
-            "q":query,
+            "qInTitle":query,
             "apikey": NEWS_API_KEY,
             "from": from_date,
         }
@@ -90,7 +90,7 @@ def get_news(query:str) -> Dict:
 
 ## STEP 3: Use https://www.twilio.com
 # Send a separate message with the percentage change and each article's title and description to your phone number.
-def send_whatsapp_message(text):
+def send_whatsapp_message(text:str) -> None:
     twilio_credentials = get_twilio_credentials()
     account_sid = twilio_credentials["account_sid"]
     auth_token = twilio_credentials["auth_token"]
@@ -132,16 +132,16 @@ Brief: We at Insider Monkey have gone over 821 13F filings that hedge funds and 
 
 stock_difference_perc = get_stock_difference_perc(STOCK)
 if -5 <= stock_difference_perc >= 5:
-    if stock_difference_perc >= 5:
-        message = f"TSLA: 🔺{stock_difference_perc}%"
-    else:
-        message = f"TSLA: 🔻{stock_difference_perc}%"
     news = get_news(COMPANY_NAME)
 
     for i in news["articles"]:
+        if stock_difference_perc >= 5:
+            message = f"TSLA: 🔺{stock_difference_perc}%"
+        else:
+            message = f"TSLA: 🔻{stock_difference_perc}%"
+
         message += f"Headline: {i['title']}\n"
         message += f"Brief: {i['description']}\n\n"
-
-    send_whatsapp_message(message)
+        send_whatsapp_message(message)
 else:
     print(stock_difference_perc)
