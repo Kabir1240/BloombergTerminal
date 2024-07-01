@@ -1,6 +1,11 @@
 import os
 import requests
+import json
+from typing import Dict
 from datetime import date, timedelta
+from tkinter import messagebox
+from twilio.rest import Client
+from enter_twilio_details import EnterTwilioCredentials, TWILIO_CRED_PATH
 
 STOCK = "TSLA"
 COMPANY_NAME = "Tesla Inc"
@@ -27,7 +32,7 @@ def get_stock_difference_perc(stock:str) -> float:
 
     response = requests.get(url=url, params=params)
     response.raise_for_status()
-    json = response.json()
+    data = response.json()
 
     # stocks are not recorded on weekends. Accommodate for that.
     if date.today().day == 1:
@@ -45,8 +50,8 @@ def get_stock_difference_perc(stock:str) -> float:
     second_last_entry = (date.today() - timedelta(days=days_since_second_last_entry)).strftime("%Y-%m-%d")
 
     # get the last 2 entries, at close time
-    last_stock_price = float(json["Time Series (Daily)"][last_entry]["4. close"])
-    second_last_stock_price = float(json["Time Series (Daily)"][second_last_entry]["4. close"])
+    last_stock_price = float(data["Time Series (Daily)"][last_entry]["4. close"])
+    second_last_stock_price = float(data["Time Series (Daily)"][second_last_entry]["4. close"])
 
     # calculate the percentage difference
     stock_difference = last_stock_price - second_last_stock_price
@@ -55,8 +60,13 @@ def get_stock_difference_perc(stock:str) -> float:
 
 ## STEP 2: Use https://newsapi.org
 # Instead of printing ("Get News"), actually get the first 3 news pieces for the COMPANY_NAME. 
-def get_news(query):
-    url = "https://newsapi.org/v2/everything"
+def get_news(query:str) -> Dict:
+    """
+    searches the news for queries, returns relevant articles in a dictionary.
+    :param query: query to search for.
+    :return: Dictionary with relevant articles.
+    """
+    url = "https://newsapi.org/v2/top-headlines"
 
     if date.today().day == 1:
         from_date = (date.today() - timedelta(days=4)).strftime("%Y-%m-%d")
@@ -74,11 +84,39 @@ def get_news(query):
 
     response = requests.get(url=url, params=params)
     response.raise_for_status()
-    print(response.json())
+
+    return response.json()
 
 
 ## STEP 3: Use https://www.twilio.com
 # Send a separate message with the percentage change and each article's title and description to your phone number.
+def send_whatsapp_message(text):
+    twilio_credentials = get_twilio_credentials()
+    account_sid = twilio_credentials["account_sid"]
+    auth_token = twilio_credentials["auth_token"]
+    from_number = twilio_credentials["from"]
+    to_number = twilio_credentials["to"]
+
+    client = Client(account_sid, auth_token)
+    text = client.messages.create(
+        from_=from_number,
+        body=text,
+        to=to_number
+    )
+
+    messagebox.showinfo(title="Message sent", message=f"Message {text.status}")
+
+
+def get_twilio_credentials():
+    # retrieve twilio credentials
+    try:
+        with open(TWILIO_CRED_PATH, 'r') as file:
+            twilio_credentials = json.load(file)
+        return twilio_credentials
+
+    except FileNotFoundError:
+        EnterTwilioCredentials()
+        return get_twilio_credentials()
 
 
 #Optional: Format the SMS message like this: 
@@ -91,11 +129,19 @@ or
 Headline: Were Hedge Funds Right About Piling Into Tesla Inc. (TSLA)?. 
 Brief: We at Insider Monkey have gone over 821 13F filings that hedge funds and prominent investors are required to file by the SEC The 13F filings show the funds' and investors' portfolio positions as of March 31st, near the height of the coronavirus market crash.
 """
-#
-# stock_difference_perc = get_stock_difference_perc(STOCK)
-# if -5 <= stock_difference_perc >= 5:
-#     get_news(COMPANY_NAME)
-# else:
-#     print(stock_difference_perc)
 
-get_news(COMPANY_NAME)
+stock_difference_perc = get_stock_difference_perc(STOCK)
+if -5 <= stock_difference_perc >= 5:
+    if stock_difference_perc >= 5:
+        message = f"TSLA: 🔺{stock_difference_perc}%"
+    else:
+        message = f"TSLA: 🔻{stock_difference_perc}%"
+    news = get_news(COMPANY_NAME)
+
+    for i in news["articles"]:
+        message += f"Headline: {i['title']}\n"
+        message += f"Brief: {i['description']}\n\n"
+
+    send_whatsapp_message(message)
+else:
+    print(stock_difference_perc)
