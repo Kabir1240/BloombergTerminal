@@ -66,7 +66,7 @@ def get_news(query:str) -> Dict:
     :param query: query to search for.
     :return: Dictionary with relevant articles.
     """
-    url = "https://newsapi.org/v2/top-headlines"
+    url = "https://newsapi.org/v2/everything"
 
     if date.today().day == 1:
         from_date = (date.today() - timedelta(days=4)).strftime("%Y-%m-%d")
